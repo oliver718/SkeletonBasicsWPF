@@ -94,7 +94,14 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         // ****Dibujo de la imagen que se mostrará
         private DrawingImage imageSource;
 
-        // ***Para reservar pixels de color
+
+        //----------------------------------
+        //--------variables añadidas--------
+        //----------------------------------
+
+        /// <summary>
+        /// Para reservar pixels de color
+        /// </summary>
         private byte[] colorPixels;
 
         /// <summary>
@@ -102,11 +109,10 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         /// </summary>
         private WriteableBitmap colorBitmap;
 
-
         /// <summary>
         /// Grosor y color de "hueso" cuello-cabeza
         /// </summary>
-        private Pen trackedBonePenHead = new Pen(Brushes.Red, 6);
+        private Pen trackedBonePenHead = new Pen(Brushes.Green, 6);
 
         /// <summary>
         /// Posicion de la cabeza cuando se empiece el movimiento de cabeza
@@ -121,22 +127,48 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         /// <summary>
         /// valdrá true si comenzó el movimiento de cabeza, false en caso contrario
         /// </summary>
-        private bool movIniciado;
+        private bool movIniciado = false;
 
         /// <summary>
         /// valdrá true cuando se complete el movimiento de la cabeza hacia la derecha
         /// </summary>
-        private bool movDerechaIniciado;
+        private bool movDerechaIniciado = false;
 
         /// <summary>
         /// valdrá true cuando se complete el movimiento de la cabeza hacia la izquierda
         /// </summary>
-        private bool movIzquierdaIniciado;
+        private bool movIzquierdaIniciado = false;
 
         /// <summary>
         /// valdrá true cuando el movimiento de cabeza se realice correctamente
         /// </summary>
-        private bool movFinalizado;
+        private bool movFinalizado = false;
+
+        ///<summary>
+        /// número de frames por segundo
+        /// </summary>
+        private readonly int FPS = 30;
+
+        ///<summary>
+        /// contador de frames
+        /// </summary>
+        private int contFPS = 0;
+
+        ///<summary>
+        /// Espera inicial para que el usuario se coloque en posición
+        /// </summary>
+        private bool esperaInicial = true;
+
+        ///<summary>
+        /// almacena la sumatoria de los grados de inclinacion de la cabeza (para despues calcular la media)
+        /// </summary>
+        private float sumGrados = 0;
+
+        ///<summary>
+        /// grado de inclinacion de posicion inicial
+        /// </summary>
+        private float gradoPosErguido;
+
 
 //--------------------------------------------------------------------------------------------------
 //------------------------------------------------METODOS-------------------------------------------
@@ -225,7 +257,7 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
 
             if (this.sensor != null)
             {
-                // *** En ImageE se proyectará el esqueleto y en ImageC la imagen en color del senson kinect
+                // En ImageE se proyectará el esqueleto y en ImageC la imagen en color del senson kinect
                 // Display the drawing using our image control
                 ImageE.Source = this.imageSource;
 
@@ -235,16 +267,17 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
                 // Add an event handler to be called whenever there is new color frame data
                 this.sensor.SkeletonFrameReady += this.SensorSkeletonFrameReady;
 
-                // ***color stream
+                // color stream
                 this.sensor.ColorStream.Enable(ColorImageFormat.RgbResolution640x480Fps30);
 
                 // Espacio reservado para pixels de color
                 this.colorPixels = new byte[this.sensor.ColorStream.FramePixelDataLength];
 
                 //Bitmaps para mostrar en pantalla
-                this.colorBitmap = new WriteableBitmap(this.sensor.ColorStream.FrameWidth, this.sensor.ColorStream.FrameHeight, 96.0, 96.0, PixelFormats.Bgr32, null);
+                this.colorBitmap = new WriteableBitmap(this.sensor.ColorStream.FrameWidth, 
+                    this.sensor.ColorStream.FrameHeight, 96.0, 96.0, PixelFormats.Bgr32, null);
 
-                // ***Para que en el objeto Image se proyecte la imagen
+                // Para que en el objeto Image se proyecte la imagen
                 this.ImageC.Source = this.colorBitmap;
 
                 this.sensor.ColorFrameReady += this.SensorColorFrameReady;
@@ -258,12 +291,6 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
                 {
                     this.sensor = null;
                 }
-
-                //inicialmente se indica que no se inicio el movimiento
-                movIniciado = false;
-                movIzquierdaIniciado = false;
-                movDerechaIniciado = false;
-                movFinalizado = false;
             }
 
             if (null == this.sensor)
@@ -375,73 +402,129 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         /// <param name="skeleton">objeto esqueleto</param>
         private void movimientoCuello(Skeleton skeleton)
         {
-            Joint cabeza = skeleton.Joints[JointType.Head];
-            Joint centroPecho = skeleton.Joints[JointType.ShoulderCenter];
+            float mediaGrados;
+            int gradoActual;
+            //Colores utilizados:
+                //Marcar posiciones (cabeza en centro, cabeza en derecha) ---> color agua
+                //movimiento en curso ---> color azul
+                //movimiento erroneo ---> rojo
+                //movimiento finalizado ---> verde
 
-            double difPosCabezaPecho = System.Math.Abs(cabeza.Position.X - centroPecho.Position.X);
-
-            if (!movFinalizado)
+            if (!esperaInicial) //una vez que la espera inicial se cumpla
             {
-                //si no se ha iniciado el movimiento y el usuario esta con la cabeza recta se puede iniciar el movimiento
-                if (!movIniciado && System.Math.Abs(cabeza.Position.X - centroPecho.Position.X) < 0.005 &&
-                    System.Math.Abs(cabeza.Position.Z - centroPecho.Position.Z) < 0.05)
-                {
-                    posInicialCabeza.X = posCabeza.X = cabeza.Position.X;
-                    posInicialCabeza.Y = posCabeza.Y = cabeza.Position.Y;
-                    posInicialCabeza.Z = posCabeza.Z = cabeza.Position.Z;
-                    movIniciado = true;
-                    movDerechaIniciado = true;
-                    this.trackedBonePenHead.Brush = Brushes.Aqua;
+                Joint cabeza = skeleton.Joints[JointType.Head];
+                Joint centroPecho = skeleton.Joints[JointType.ShoulderCenter];
 
-                }
-                //si el usuario mueve la cabeza hacia delante o hacia atras se cancela el movimiento
-                else if (movIniciado && System.Math.Abs(cabeza.Position.Z - posInicialCabeza.Z) > 0.05)
+                if (!movFinalizado)
                 {
-                    movIniciado = false;
-                    this.trackedBonePenHead.Brush = Brushes.Red;
+                    
+                    //si no se ha iniciado el movimiento y el usuario esta con la cabeza recta se puede iniciar el movimiento
+                    if (!movIniciado && System.Math.Abs(cabeza.Position.X - centroPecho.Position.X) < 0.005 &&
+                        System.Math.Abs(cabeza.Position.Z - centroPecho.Position.Z) < 0.05)
+                    {
+                        posInicialCabeza.X = posCabeza.X = cabeza.Position.X;
+                        posInicialCabeza.Y = posCabeza.Y = cabeza.Position.Y;
+                        posInicialCabeza.Z = posCabeza.Z = cabeza.Position.Z;
+                        movIniciado = true;
+                        movDerechaIniciado = true;
+                        gradoPosErguido = gradoInclinacion(centroPecho.Position.X, centroPecho.Position.Y, cabeza.Position.X, cabeza.Position.Y);
+                        this.trackedBonePenHead.Brush = Brushes.Aqua;
+
+                    }
+                    //si el usuario mueve la cabeza hacia delante o hacia atras se cancela el movimiento
+                    else if (movIniciado && System.Math.Abs(cabeza.Position.Z - posInicialCabeza.Z) > 0.05)
+                    {
+                        movIniciado = false;
+                        this.trackedBonePenHead.Brush = Brushes.Red;
+                        contFPS = 0;
+                        sumGrados = 0;
+                        txtGrados.Text = "";
+                    }
+                    //cuando se alcanza el maximo del movimiento a la derecha
+                    else if (movDerechaIniciado && (cabeza.Position.X - posInicialCabeza.X) > 0.15)
+                    {
+                        posCabeza.X = cabeza.Position.X;
+                        posCabeza.Y = cabeza.Position.Y;
+                        posCabeza.Z = cabeza.Position.Z;
+                        movIzquierdaIniciado = true;
+                        movDerechaIniciado = false;
+                        this.trackedBonePenHead.Brush = Brushes.Aqua;
+                    }
+                    //entra cuando el usuario esta moviendo el cuello hacia la derecha, 
+                    //no se admiten movimientos bruscos
+                    else if (movDerechaIniciado && (cabeza.Position.X - posCabeza.X) > 0 &&
+                        (cabeza.Position.X - posCabeza.X) < 0.05)
+                    {
+                        posCabeza.X = cabeza.Position.X;
+                        posCabeza.Y = cabeza.Position.Y;
+                        posCabeza.Z = cabeza.Position.Z;
+                        this.trackedBonePenHead.Brush = Brushes.Blue;
+                    }
+                    //cuando se alcanza el maximo del movimiento a la izquierda (finaliza el ejercicio)
+                    else if (movIzquierdaIniciado && (posInicialCabeza.X - cabeza.Position.X) > 0.15)
+                    {
+                        posCabeza.X = cabeza.Position.X;
+                        posCabeza.Y = cabeza.Position.Y;
+                        posCabeza.Z = cabeza.Position.Z;
+                        movIzquierdaIniciado = false;
+                        movFinalizado = true;
+                        this.trackedBonePenHead.Brush = Brushes.Green;
+                        txtGrados.Text = "";
+                    }
+                    //entra cuando el usuario esta moviendo el cuello hacia la izquierda, 
+                    //no se admiten movimientos bruscos
+                    else if (movIzquierdaIniciado && (cabeza.Position.X - posCabeza.X) < 0 && (posCabeza.X - cabeza.Position.X) < 0.05)
+                    {
+                        posCabeza.X = cabeza.Position.X;
+                        posCabeza.Y = cabeza.Position.Y;
+                        posCabeza.Z = cabeza.Position.Z;
+                        this.trackedBonePenHead.Brush = Brushes.Blue;
+                    }
+
+                    if (movIniciado)
+                    {
+                        sumGrados += gradoInclinacion(centroPecho.Position.X, centroPecho.Position.Y, cabeza.Position.X, cabeza.Position.Y);
+                        contFPS++;
+                        if (contFPS == FPS/3)
+                        {
+                            mediaGrados = sumGrados / (FPS/3);
+                            contFPS = 0;
+                            sumGrados = 0;
+                            gradoActual = (int)System.Math.Abs(mediaGrados - gradoPosErguido);
+                            txtGrados.Text = System.Convert.ToString(gradoActual);
+
+                        }
+                    }
                 }
-                //cuando se alcanza el maximo del movimiento a la derecha
-                else if (movDerechaIniciado && (cabeza.Position.X - posInicialCabeza.X) > 0.15)
+
+                
+            }
+
+            else //al inicio se activa una espera inicial de 3 segundos para que el usuario se recoloque
+            {
+                contFPS++;
+                if (contFPS == FPS * 3)
                 {
-                    posCabeza.X = cabeza.Position.X;
-                    posCabeza.Y = cabeza.Position.Y;
-                    posCabeza.Z = cabeza.Position.Z;
-                    movIzquierdaIniciado = true;
-                    movDerechaIniciado = false;
-                    this.trackedBonePenHead.Brush = Brushes.Aqua;
-                }
-                //entra cuando el usuario esta moviendo el cuello hacia la derecha, 
-                //no se admiten movimientos bruscos
-                else if (movDerechaIniciado && (cabeza.Position.X - posCabeza.X) > 0 && 
-                    (cabeza.Position.X - posCabeza.X) < 0.05)
-                {
-                    posCabeza.X = cabeza.Position.X;
-                    posCabeza.Y = cabeza.Position.Y;
-                    posCabeza.Z = cabeza.Position.Z;
-                    this.trackedBonePenHead.Brush = Brushes.Blue;
-                }
-                //cuando se alcanza el maximo del movimiento a la izquierda (finaliza el ejercicio)
-                else if (movIzquierdaIniciado && (posInicialCabeza.X - cabeza.Position.X) > 0.15)
-                {
-                    posCabeza.X = cabeza.Position.X;
-                    posCabeza.Y = cabeza.Position.Y;
-                    posCabeza.Z = cabeza.Position.Z;
-                    movIzquierdaIniciado = false;
-                    movFinalizado = true;
-                    this.trackedBonePenHead.Brush = Brushes.Green;
-                }
-                //entra cuando el usuario esta moviendo el cuello hacia la izquierda, 
-                //no se admiten movimientos bruscos
-                else if (movIzquierdaIniciado && (cabeza.Position.X - posCabeza.X) < 0 && (posCabeza.X - cabeza.Position.X) < 0.05)
-                {
-                    posCabeza.X = cabeza.Position.X;
-                    posCabeza.Y = cabeza.Position.Y;
-                    posCabeza.Z = cabeza.Position.Z;
-                    this.trackedBonePenHead.Brush = Brushes.Blue;
+                    esperaInicial = false;
+                    contFPS = 0; //para cuando vuelva a usarse para calcular los grados de inclinación
                 }
             }
         }
 
+        /// <summary>
+        /// Metodo que devuelve el grado de inclinación de una recta.
+        /// Entran por parametros las coordenadas de la recta.
+        /// </summary>
+        private float gradoInclinacion(float x1, float y1, float x2, float y2)
+        {
+            float grado = 0;
+            float m = (y2 - y1) / (x2 - x1);
+            grado = (float)(System.Math.Atan(m) * (180 / System.Math.PI));
+            if (grado < 0)
+                grado = 180 + grado;     
+
+            return grado;
+        }
         /// <summary>
         /// Draws a skeleton's bones and joints
         /// </summary>

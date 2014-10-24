@@ -69,6 +69,8 @@
             <StatusBarItem Padding="0 0 0 10">
                 <TextBlock Name="statusBarText" Margin="-1 0 0 0">Click 'Seated' to change skeletal pipeline type!</TextBlock>
             </StatusBarItem>
-        </StatusBar>       
+        </StatusBar>
+        <TextBox Grid.Row="2" Height="23" HorizontalAlignment="Left" Margin="566,10,0,0" Name="txtGrados" VerticalAlignment="Top" Width="120" IsReadOnly="True" FontSize="14" FontWeight="Bold" />
+        <Label Content="Inclinacion de cabeza en grados:" Grid.Row="2" Height="28" HorizontalAlignment="Left" Margin="350,8,0,0" Name="label1" VerticalAlignment="Top" FontWeight="Normal" FontSize="14" />
     </Grid>
 </Window>
