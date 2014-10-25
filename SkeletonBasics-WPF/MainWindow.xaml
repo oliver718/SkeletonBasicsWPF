@@ -70,7 +70,13 @@
                 <TextBlock Name="statusBarText" Margin="-1 0 0 0">Click 'Seated' to change skeletal pipeline type!</TextBlock>
             </StatusBarItem>
         </StatusBar>
-        <TextBox Grid.Row="2" Height="23" HorizontalAlignment="Left" Margin="566,10,0,0" Name="txtGrados" VerticalAlignment="Top" Width="120" IsReadOnly="True" FontSize="14" FontWeight="Bold" />
-        <Label Content="Inclinacion de cabeza en grados:" Grid.Row="2" Height="28" HorizontalAlignment="Left" Margin="350,8,0,0" Name="label1" VerticalAlignment="Top" FontWeight="Normal" FontSize="14" />
+        <TextBox Grid.Row="2" Height="23" HorizontalAlignment="Left" Margin="596,10,0,0" Name="txtGrados" VerticalAlignment="Top" Width="120" IsReadOnly="True" FontSize="14" FontWeight="Bold" />
+        <Label Content="Inclinación (lateral) de cabeza en grados:" Grid.Row="2" Height="28" HorizontalAlignment="Left" Margin="329,6,0,0" Name="label1" VerticalAlignment="Top" FontWeight="Normal" FontSize="14" />
+        <TextBox Grid.Row="3" Height="23" HorizontalAlignment="Left" Margin="596,0,0,0" Name="txtZ" VerticalAlignment="Top" Width="120" FontSize="14" FontWeight="Bold" />
+        <Label Content="Inclinación de cabeza en eje Z en grados:" FontSize="14" FontWeight="Normal" Height="28" HorizontalAlignment="Left" Margin="329,39,0,0" Name="label2" VerticalAlignment="Top" Grid.Row="2" Grid.RowSpan="2" Width="270" />
+        <Label Grid.Row="1" Height="63" HorizontalAlignment="Left" Margin="212,371,0,0" Name="lblRepetir" VerticalAlignment="Top" Width="329" Content="¡MAL! ¡Repetimos!" FontSize="36" FontWeight="Bold" Foreground="#FFCF0000" Visibility="Hidden" />
+        <Label Content="¡Perfecto!" FontSize="36" FontWeight="Bold" Foreground="#FF00B400" Height="60" HorizontalAlignment="Left" Margin="265,326,0,0" Name="lblFin" VerticalAlignment="Top" Visibility="Hidden" Width="183" Grid.Row="1" />
+        <Label Content="Mover cabeza derecha-izquierda" FontSize="36" FontWeight="Bold" Foreground="#FF00B400" Height="60" HorizontalAlignment="Left" Margin="87,11,0,0" Name="lblInicio" VerticalAlignment="Top" Visibility="Visible" Width="564" Grid.Row="1" />
+        <Button Content="Repetir" Grid.Row="2" Height="34" HorizontalAlignment="Left" Margin="174,4,0,0" Name="btnRepetir" VerticalAlignment="Top" Width="75" FontSize="15" FontWeight="Normal" Click="btnRepetir_Click" />
     </Grid>
 </Window>
